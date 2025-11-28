@@ -1,0 +1,8 @@
+Components
+
+app/View/Components:
+AccountLayout.php
+AdminLayout.php
+AuthLayout.php
+ErrorLayout.php
+GuestLayout.php
