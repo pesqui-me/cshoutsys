@@ -8,10 +8,10 @@
                 <div class="flex items-center gap-3 mb-4">
                     <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg">
                         <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                     </div>
-                    <span class="text-xl font-bold text-white">CASH OUT</span>
+                    <span class="text-xl font-bold text-white">PRIME BLOCK</span>
                 </div>
                 <p class="text-sm text-gray-400 mb-6 leading-relaxed">
                     Investissez intelligemment et faites fructifier votre capital avec notre plateforme sécurisée et transparente.
@@ -46,12 +46,12 @@
                 <div class="grid grid-cols-1 gap-8 sm:grid-cols-3">
                     <!-- Company -->
                     <div>
-                        <h3 class="text-sm font-semibold text-white mb-4">Entreprise</h3>
+                        <h3 class="text-sm font-semibold text-white mb-4">Navigation</h3>
                         <ul class="space-y-3">
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">À propos</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Carrières</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Presse</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Partenaires</a></li>
+                            <li><a href="{{ route('home') }}#features" class="text-sm hover:text-white transition-colors duration-200">Fonctionnalités</a></li>
+                            <li><a href="{{ route('home') }}#how-it-works" class="text-sm hover:text-white transition-colors duration-200">Comment ça marche</a></li>
+                            <li><a href="{{ route('home') }}#pricing" class="text-sm hover:text-white transition-colors duration-200">Tarifs</a></li>
+                            <li><a href="{{ route('home') }}#testimonials" class="text-sm hover:text-white transition-colors duration-200">Témoignages</a></li>
                         </ul>
                     </div>
 
@@ -59,9 +59,9 @@
                     <div>
                         <h3 class="text-sm font-semibold text-white mb-4">Support</h3>
                         <ul class="space-y-3">
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Centre d'aide</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Contact</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">FAQ</a></li>
+                            <li><a href="{{ route('help-center') }}" class="text-sm hover:text-white transition-colors duration-200">Centre d'aide</a></li>
+                            <li><a href="{{ route('contact') }}" class="text-sm hover:text-white transition-colors duration-200">Contact</a></li>
+                            <li><a href="{{ route('faq') }}" class="text-sm hover:text-white transition-colors duration-200">FAQ</a></li>
                             <li>
                                 <div class="flex items-center gap-2">
                                     <div class="flex h-2 w-2 rounded-full bg-green-500">
@@ -77,9 +77,9 @@
                     <div>
                         <h3 class="text-sm font-semibold text-white mb-4">Légal</h3>
                         <ul class="space-y-3">
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Confidentialité</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Conditions d'utilisation</a></li>
-                            <li><a href="#" class="text-sm hover:text-white transition-colors duration-200">Mentions légales</a></li>
+                            <li><a href="{{ route('privacy') }}" class="text-sm hover:text-white transition-colors duration-200">Confidentialité</a></li>
+                            <li><a href="{{ route('terms') }}" class="text-sm hover:text-white transition-colors duration-200">Conditions d'utilisation</a></li>
+                            <li><a href="{{ route('legal') }}" class="text-sm hover:text-white transition-colors duration-200">Mentions légales</a></li>
                             <li>
                                 <div class="flex items-center gap-2">
                                     <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
@@ -100,7 +100,7 @@
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
                 <p class="text-sm text-gray-400">
-                    © {{ date('Y') }} CASH OUT. Tous droits réservés.
+                    © {{ date('Y') }} PRIME BLOCK. Tous droits réservés.
                 </p>
                 <div class="flex items-center gap-6 text-sm text-gray-400">
                     <div class="flex items-center gap-2">

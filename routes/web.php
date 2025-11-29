@@ -16,13 +16,29 @@ Route::get('/', function () {
 })->name('home');
 
 // Pages légales
-Route::get('/terms', function () {
-    return view('legal.terms');
-})->name('terms');
+Route::get('/help-center', function () {
+    return view('guest.help-center');
+})->name('help-center');
+
+Route::get('/faq', function () {
+    return view('guest.faq');
+})->name('faq');
+
+Route::get('/contact', function () {
+    return view('guest.contact');
+})->name('contact');
 
 Route::get('/privacy', function () {
-    return view('legal.privacy');
+    return view('guest.legales.privacy');
 })->name('privacy');
+
+Route::get('/terms', function () {
+    return view('guest.legales.terms');
+})->name('terms');
+
+Route::get('/legal', function () {
+    return view('guest.legales.legal');
+})->name('legal');
 
 // Redirect root si authentifié
 Route::get('/dashboard', function () {

@@ -135,7 +135,7 @@
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-4xl font-extrabold text-gray-900 sm:text-5xl mb-4">
-                    Pourquoi choisir <span class="text-primary-600">CASH OUT</span> ?
+                    Pourquoi choisir <span class="text-primary-600">PRIME BLOCK</span> ?
                 </h2>
                 <p class="text-xl text-gray-600 max-w-3xl mx-auto">
                     Une plateforme conçue pour maximiser vos rendements en toute sécurité
@@ -476,6 +476,8 @@
             </div>
         </div>
     </section>
+
+    <x-testimonials />
 
     @push('styles')
     <style>

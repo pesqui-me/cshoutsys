@@ -3,220 +3,212 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\UserInvestment;
-use App\Models\Transaction;
+use App\Models\Investment;
 use App\Models\Withdrawal;
-use App\Models\SupportTicket;
-use Carbon\Carbon;
+use App\Models\Transaction;
+use App\Models\InvestmentCard;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     /**
-     * Afficher le dashboard admin
+     * Display the admin dashboard
      */
-    public function index(Request $request)
+    public function index()
     {
-        // Période sélectionnée (par défaut: ce mois)
-        $period = $request->input('period', 'month');
+        // Calculate statistics
+        $stats = $this->getStats();
         
-        $startDate = match($period) {
-            'today' => Carbon::today(),
-            'week' => Carbon::now()->startOfWeek(),
-            'month' => Carbon::now()->startOfMonth(),
-            'year' => Carbon::now()->startOfYear(),
-            default => Carbon::now()->startOfMonth(),
-        };
-
-        // Statistiques principales
-        $stats = [
-            'total_users' => User::role('user')->count(),
-            'new_users' => User::role('user')->where('created_at', '>=', $startDate)->count(),
-            'active_users' => User::role('user')->where('is_active', true)->count(),
-            
-            'total_investments' => UserInvestment::count(),
-            'active_investments' => UserInvestment::where('status', 'active')->count(),
-            'pending_investments' => UserInvestment::whereIn('status', ['pending_payment', 'payment_processing'])->count(),
-            'completed_investments' => UserInvestment::where('status', 'completed')->count(),
-            
-            'total_invested' => UserInvestment::whereNotIn('status', ['cancelled', 'refunded'])->sum('amount_paid'),
-            'total_profit_paid' => UserInvestment::where('status', 'completed')->sum('actual_profit'),
-            'pending_profit' => UserInvestment::where('status', 'active')->sum('expected_profit'),
-            
-            'pending_withdrawals' => Withdrawal::whereIn('status', ['pending', 'under_review'])->count(),
-            'approved_withdrawals' => Withdrawal::where('status', 'approved')->count(),
-            'total_withdrawn' => Withdrawal::where('status', 'completed')->sum('net_amount'),
-            
-            'pending_tickets' => SupportTicket::whereIn('status', ['new', 'open'])->count(),
-            'in_progress_tickets' => SupportTicket::where('status', 'in_progress')->count(),
-        ];
-
-        // Graphique des revenus (7 derniers jours)
-        $revenueChart = $this->getRevenueChartData();
-
-        // Graphique des investissements par carte
-        $investmentsByCard = $this->getInvestmentsByCard();
-
-        // Dernières transactions
-        $recentTransactions = Transaction::with(['user', 'userInvestment.investmentCard'])
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        // Demandes de retrait en attente
-        $pendingWithdrawals = Withdrawal::with('user')
-            ->whereIn('status', ['pending', 'under_review'])
-            ->latest()
-            ->limit(5)
-            ->get();
-
-        // Nouveaux tickets
-        $newTickets = SupportTicket::with('user')
-            ->where('status', 'new')
-            ->latest()
-            ->limit(5)
-            ->get();
-
-        // Utilisateurs récents
-        $recentUsers = User::role('user')
-            ->latest()
-            ->limit(5)
-            ->get();
-
+        // Get chart data
+        $chart_data = $this->getChartData();
+        
+        // Get recent activities
+        $recent_activities = $this->getRecentActivities();
+        
+        // Get top investors
+        $top_investors = $this->getTopInvestors();
+        
+        // Pass stats to sidebar via view composer or shared data
+        view()->share('stats', [
+            'pending_users' => 0, // À implémenter si besoin
+            'active_investments' => $stats['active_investments'],
+            'pending_withdrawals' => $stats['pending_withdrawals'],
+            'open_tickets' => 0, // À implémenter avec support_tickets
+        ]);
+        
         return view('admin.dashboard.index', compact(
             'stats',
-            'revenueChart',
-            'investmentsByCard',
-            'recentTransactions',
-            'pendingWithdrawals',
-            'newTickets',
-            'recentUsers',
-            'period'
+            'chart_data',
+            'recent_activities',
+            'top_investors'
         ));
     }
-
+    
     /**
-     * Obtenir les données du graphique de revenus
+     * Get dashboard statistics
      */
-    private function getRevenueChartData()
+    private function getStats(): array
     {
-        $data = [];
+        return [
+            // Users stats
+            'total_users' => User::count(),
+            'new_users_30d' => User::where('created_at', '>=', now()->subDays(30))->count(),
+            
+            // Investments stats
+            'active_investments' => Investment::where('status', 'active')->count(),
+            'total_invested' => Investment::sum('amount'),
+            
+            // Withdrawals stats
+            'pending_withdrawals' => Withdrawal::where('status', 'pending')->count(),
+            'pending_withdrawals_amount' => Withdrawal::where('status', 'pending')->sum('amount'),
+            
+            // Revenue stats
+            'total_revenue' => Transaction::where('type', 'profit')
+                ->sum('amount'),
+            'revenue_30d' => Transaction::where('type', 'profit')
+                ->where('created_at', '>=', now()->subDays(30))
+                ->sum('amount'),
+        ];
+    }
+    
+    /**
+     * Get chart data for graphs
+     */
+    private function getChartData(): array
+    {
+        // Revenue Chart - Last 7 days
+        $revenueData = Transaction::where('type', 'profit')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(amount) as total')
+            )
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+        
+        $revenueDates = [];
+        $revenueAmounts = [];
         
         for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
+            $date = now()->subDays($i)->format('Y-m-d');
+            $revenueDates[] = now()->subDays($i)->format('D');
             
-            $invested = UserInvestment::whereDate('created_at', $date)
-                ->whereNotIn('status', ['cancelled', 'refunded'])
-                ->sum('amount_paid');
-            
-            $withdrawn = Withdrawal::whereDate('completed_at', $date)
-                ->where('status', 'completed')
-                ->sum('net_amount');
-            
-            $data[] = [
-                'date' => $date->format('d/m'),
-                'invested' => $invested,
-                'withdrawn' => $withdrawn,
-                'net' => $invested - $withdrawn,
+            $dayData = $revenueData->firstWhere('date', $date);
+            $revenueAmounts[] = $dayData ? $dayData->total : 0;
+        }
+        
+        // Cards Distribution
+        $cardsDistribution = Investment::select('investment_card_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('investment_card_id')
+            ->with('investmentCard')
+            ->get();
+        
+        $cardLabels = [];
+        $cardData = [];
+        
+        foreach ($cardsDistribution as $dist) {
+            if ($dist->investmentCard) {
+                $cardLabels[] = $dist->investmentCard->name . ' ($' . $dist->investmentCard->price . ')';
+                $cardData[] = $dist->count;
+            }
+        }
+        
+        // If no data, use default
+        if (empty($cardLabels)) {
+            $cardLabels = ['Bronze ($200)', 'Silver ($500)', 'Gold ($1,000)', 'Platinum ($1,500)'];
+            $cardData = [20, 28, 32, 20];
+        }
+        
+        return [
+            'revenue' => [
+                'labels' => $revenueDates,
+                'data' => $revenueAmounts,
+            ],
+            'cards' => [
+                'labels' => $cardLabels,
+                'data' => $cardData,
+            ],
+        ];
+    }
+    
+    /**
+     * Get recent platform activities
+     */
+    private function getRecentActivities(): array
+    {
+        $activities = [];
+        
+        // Recent users
+        $newUsers = User::latest()
+            ->limit(2)
+            ->get();
+        
+        foreach ($newUsers as $user) {
+            $activities[] = [
+                'icon' => '👤',
+                'color' => 'from-sky-500/10 to-blue-600/5',
+                'title' => 'Nouvel utilisateur',
+                'description' => $user->name . ' s\'est inscrit sur la plateforme',
+                'time' => $user->created_at->diffForHumans(),
             ];
         }
         
-        return $data;
-    }
-
-    /**
-     * Obtenir la répartition des investissements par carte
-     */
-    private function getInvestmentsByCard()
-    {
-        return DB::table('user_investments')
-            ->join('investment_cards', 'user_investments.investment_card_id', '=', 'investment_cards.id')
-            ->select('investment_cards.name', DB::raw('COUNT(*) as count'), DB::raw('SUM(user_investments.amount_paid) as total'))
-            ->whereNotIn('user_investments.status', ['cancelled', 'refunded'])
-            ->groupBy('investment_cards.id', 'investment_cards.name')
-            ->orderBy('count', 'desc')
+        // Recent investments
+        $recentInvestments = Investment::with(['user', 'investmentCard'])
+            ->latest()
+            ->limit(2)
             ->get();
-    }
-
-    /**
-     * Obtenir les statistiques en temps réel (AJAX)
-     */
-    public function getRealtimeStats()
-    {
-        return response()->json([
-            'active_users' => User::role('user')->where('is_active', true)->count(),
-            'active_investments' => UserInvestment::where('status', 'active')->count(),
-            'pending_withdrawals' => Withdrawal::whereIn('status', ['pending', 'under_review'])->count(),
-            'pending_tickets' => SupportTicket::whereIn('status', ['new', 'open'])->count(),
-            'total_balance' => User::role('user')->sum('balance'),
-        ]);
-    }
-
-    /**
-     * Exporter les statistiques en PDF
-     */
-    public function exportStats(Request $request)
-    {
-        $period = $request->input('period', 'month');
         
-        // Récupérer toutes les statistiques
-        $stats = $this->getDetailedStats($period);
+        foreach ($recentInvestments as $investment) {
+            $activities[] = [
+                'icon' => '💳',
+                'color' => 'from-green-500/10 to-emerald-600/5',
+                'title' => 'Achat de carte',
+                'description' => ($investment->user->name ?? 'Utilisateur') . ' - Carte ' . ($investment->investmentCard->name ?? 'Investment'),
+                'time' => $investment->created_at->diffForHumans(),
+            ];
+        }
         
-        $pdf = \PDF::loadView('admin.reports.stats', compact('stats', 'period'));
+        // Recent withdrawals
+        $recentWithdrawals = Withdrawal::with('user')
+            ->latest()
+            ->limit(2)
+            ->get();
         
-        return $pdf->download('statistics-' . now()->format('Y-m-d') . '.pdf');
+        foreach ($recentWithdrawals as $withdrawal) {
+            $activities[] = [
+                'icon' => '💰',
+                'color' => 'from-amber-500/10 to-orange-600/5',
+                'title' => 'Demande de retrait',
+                'description' => ($withdrawal->user->name ?? 'Utilisateur') . ' demande un retrait de $' . number_format($withdrawal->amount, 2),
+                'time' => $withdrawal->created_at->diffForHumans(),
+            ];
+        }
+        
+        // Sort by time and limit to 5
+        usort($activities, function($a, $b) {
+            return strcmp($b['time'], $a['time']);
+        });
+        
+        return array_slice($activities, 0, 5);
     }
-
+    
     /**
-     * Obtenir des statistiques détaillées
+     * Get top investors by total invested amount
      */
-    private function getDetailedStats($period)
+    private function getTopInvestors()
     {
-        $startDate = match($period) {
-            'today' => Carbon::today(),
-            'week' => Carbon::now()->startOfWeek(),
-            'month' => Carbon::now()->startOfMonth(),
-            'year' => Carbon::now()->startOfYear(),
-            default => Carbon::now()->startOfMonth(),
-        };
-
-        return [
-            'users' => [
-                'total' => User::role('user')->count(),
-                'new' => User::role('user')->where('created_at', '>=', $startDate)->count(),
-                'active' => User::role('user')->where('is_active', true)->count(),
-                'inactive' => User::role('user')->where('is_active', false)->count(),
-            ],
-            'investments' => [
-                'total' => UserInvestment::count(),
-                'active' => UserInvestment::where('status', 'active')->count(),
-                'pending' => UserInvestment::whereIn('status', ['pending_payment', 'payment_processing'])->count(),
-                'completed' => UserInvestment::where('status', 'completed')->count(),
-                'cancelled' => UserInvestment::where('status', 'cancelled')->count(),
-            ],
-            'financial' => [
-                'total_invested' => UserInvestment::whereNotIn('status', ['cancelled', 'refunded'])->sum('amount_paid'),
-                'total_profit_paid' => UserInvestment::where('status', 'completed')->sum('actual_profit'),
-                'pending_profit' => UserInvestment::where('status', 'active')->sum('expected_profit'),
-                'total_withdrawn' => Withdrawal::where('status', 'completed')->sum('net_amount'),
-                'platform_balance' => User::role('user')->sum('balance'),
-            ],
-            'withdrawals' => [
-                'total' => Withdrawal::count(),
-                'pending' => Withdrawal::whereIn('status', ['pending', 'under_review'])->count(),
-                'approved' => Withdrawal::where('status', 'approved')->count(),
-                'completed' => Withdrawal::where('status', 'completed')->count(),
-                'rejected' => Withdrawal::where('status', 'rejected')->count(),
-            ],
-            'support' => [
-                'total_tickets' => SupportTicket::count(),
-                'new' => SupportTicket::where('status', 'new')->count(),
-                'open' => SupportTicket::where('status', 'open')->count(),
-                'in_progress' => SupportTicket::where('status', 'in_progress')->count(),
-                'resolved' => SupportTicket::where('status', 'resolved')->count(),
-            ],
-        ];
+        return User::select('users.*')
+            ->selectRaw('COUNT(investments.id) as investments_count')
+            ->selectRaw('SUM(investments.amount) as total_invested')
+            ->join('investments', 'users.id', '=', 'investments.user_id')
+            ->where('investments.status', 'active')
+            ->groupBy('users.id')
+            ->orderByDesc('total_invested')
+            ->limit(5)
+            ->get();
     }
 }

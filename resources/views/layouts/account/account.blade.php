@@ -4,9 +4,17 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <meta name="description" content="CASH OUT - Investissement Intelligent & Rentable">
+        {{-- <meta name="description" content="PRIME BLOCK - Investissement Intelligent & Rentable"> --}}
         
-        <title>{{ $title ?? 'Dashboard' }} - CASH OUT</title>
+        <title>{{ $title ?? 'Dashboard' }} - PRIME BLOCK</title>
+
+        <meta name="robots" content="noindex, nofollow">
+        <meta name="googlebot" content="noindex, nofollow">
+        <meta name="google" content="notranslate">
+        <meta name="google-site-verification" content="google-site-verification=google-site-verification">
+        <meta name="google-site-verification" content="google-site-verification">
+        
+        <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.svg') }}">
         
         <!-- Vite CSS + JS -->
         

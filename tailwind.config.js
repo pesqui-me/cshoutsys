@@ -7,6 +7,10 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'inter': ['Inter', 'sans-serif'],
+        'poppins': ['Poppins', 'sans-serif'],
+      },
       colors: {
         primary: {
           50: '#f5f3ff',
@@ -20,6 +24,18 @@ export default {
           800: '#5b21b6',
           900: '#4c1d95',
         },
+        'admin': {
+            'primary': '#0EA5E9',
+            'secondary': '#0284C7',
+            'accent': '#06B6D4',
+            'dark': '#0F172A',
+            'darker': '#020617',
+            'slate': '#1E293B',
+            'slate-light': '#334155',
+        },
+      },
+      animation: {
+        'pulse': 'pulse 4s ease-in-out infinite',
       },
     },
   },

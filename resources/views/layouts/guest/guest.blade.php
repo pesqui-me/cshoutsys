@@ -5,7 +5,18 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         
-        <title>{{ $title ?? 'CASH OUT' }} - Plateforme d'Investissement</title>
+        <title>{{ $title ?? 'PRIME BLOCK' }} - Plateforme d'Investissement</title>
+
+        <meta name="description" content="Plateforme d'investissement en ligne. Investissez en toute sécurité et profitez de rendements garantis.">
+        <meta name="keywords" content="investissement, plateforme, sécurité, rendements, garantis">
+        <meta name="author" content="PRIME BLOCK">
+        <meta name="robots" content="index, follow">
+        <meta name="googlebot" content="index, follow">
+        <meta name="google" content="notranslate">
+        <meta name="google-site-verification" content="google-site-verification=google-site-verification">
+        <meta name="google-site-verification" content="google-site-verification">
+
+        <link rel="shortcut icon" type="image/x-icon" href="{{ asset('favicon.svg') }}">
         
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

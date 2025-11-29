@@ -9,7 +9,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                     </div>
-                    <span class="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">CASH OUT</span>
+                    <span class="text-3xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">PRIME BLOCK</span>
                 </div>
                 <h1 class="text-3xl font-extrabold text-gray-900 mb-2">Mot de passe oublié ?</h1>
                 <p class="text-gray-600">Pas de problème. Indiquez-nous votre adresse email et nous vous enverrons un lien de réinitialisation.</p>
