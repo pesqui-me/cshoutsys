@@ -103,7 +103,7 @@
                                                 </div>
                                                 <p style="margin: 0; line-height: 1.6; white-space: pre-wrap;">{{ $message->message }}</p>
 
-                                                @if($message->hasMedia('attachments'))
+                                                @if($message->getFirstMediaUrl('attachments'))
                                                     <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);">
                                                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                                             @foreach($message->getMedia('attachments') as $attachment)

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\SupportTicket;
 use App\Models\SupportMessage;
 
@@ -60,12 +61,23 @@ class SupportController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'subject' => 'required|string|max:255',
+        // ⭐ VALIDATION AMÉLIORÉE
+        $validated = $request->validate([
+            'subject' => 'required|string|min:5|max:255',
             'category' => 'required|in:payment,technical,account,general',
             'priority' => 'required|in:low,medium,high',
-            'message' => 'required|string|min:10',
-            'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
+            'message' => 'required|string|min:10|max:5000',
+            'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,txt|max:5120', // 5MB max
+        ], [
+            // Messages en français
+            'subject.required' => 'Le sujet est obligatoire.',
+            'subject.min' => 'Le sujet doit contenir au moins 5 caractères.',
+            'category.required' => 'Veuillez sélectionner une catégorie.',
+            'priority.required' => 'Veuillez sélectionner une priorité.',
+            'message.required' => 'Le message est obligatoire.',
+            'message.min' => 'Le message doit contenir au moins 10 caractères.',
+            'attachments.*.mimes' => 'Les fichiers doivent être des images, PDF ou documents Word.',
+            'attachments.*.max' => 'Chaque fichier ne doit pas dépasser 5MB.',
         ]);
 
         $user = Auth::user();
@@ -73,43 +85,99 @@ class SupportController extends Controller
         DB::beginTransaction();
 
         try {
+            // ⭐ LOG DE DEBUG
+            Log::info('Creating support ticket', [
+                'user_id' => $user->id,
+                'subject' => $validated['subject'],
+                'has_files' => $request->hasFile('attachments'),
+                'files_count' => $request->hasFile('attachments') ? count($request->file('attachments')) : 0,
+            ]);
+
             // Créer le ticket
             $ticket = SupportTicket::create([
                 'user_id' => $user->id,
-                'subject' => $request->subject,
-                'category' => $request->category,
-                'priority' => $request->priority,
+                'subject' => $validated['subject'],
+                'category' => $validated['category'],
+                'priority' => $validated['priority'],
                 'status' => 'new',
             ]);
+
+            Log::info('Support ticket created', ['ticket_id' => $ticket->id]);
 
             // Créer le premier message
             $message = SupportMessage::create([
                 'support_ticket_id' => $ticket->id,
                 'user_id' => $user->id,
-                'message' => $request->message,
+                'message' => $validated['message'],
                 'is_admin_reply' => false,
             ]);
 
+            Log::info('Support message created', ['message_id' => $message->id]);
+
             // Ajouter les pièces jointes au ticket
             if ($request->hasFile('attachments')) {
+                $filesCount = 0;
+                
                 foreach ($request->file('attachments') as $file) {
-                    $ticket->addMedia($file)
-                        ->toMediaCollection('attachments');
+                    try {
+                        Log::info('Processing file', [
+                            'filename' => $file->getClientOriginalName(),
+                            'size' => $file->getSize(),
+                            'mime' => $file->getMimeType(),
+                        ]);
+
+                        $ticket->addMedia($file)
+                            ->toMediaCollection('attachments');
+                        
+                        $filesCount++;
+                        
+                        Log::info('File attached successfully', [
+                            'filename' => $file->getClientOriginalName(),
+                        ]);
+
+                    } catch (\Exception $fileException) {
+                        // Si un fichier échoue, on continue avec les autres
+                        Log::error('Failed to attach file', [
+                            'filename' => $file->getClientOriginalName(),
+                            'error' => $fileException->getMessage(),
+                        ]);
+                        
+                        // ⭐ IMPORTANT : On ne rollback pas pour un fichier qui échoue
+                        // throw $fileException;
+                    }
                 }
+
+                Log::info('All files processed', ['attached_count' => $filesCount]);
             }
 
             DB::commit();
 
+            Log::info('Support ticket transaction committed', ['ticket_id' => $ticket->id]);
+
             return redirect()
-                ->route('user.support.show', $ticket->id)
-                ->with('success', 'Votre ticket a été créé avec succès. Notre équipe vous répondra sous peu.');
+                ->route('user.support.index')
+                ->with('success', 'Votre ticket a été créé avec succès ! Notre équipe vous répondra sous peu.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             
+            // ⭐ LOG DÉTAILLÉ DE L'ERREUR
+            Log::error('Support ticket creation failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // ⭐ Message d'erreur détaillé en développement
+            $errorMessage = config('app.debug') 
+                ? 'Erreur : ' . $e->getMessage() . ' (Ligne ' . $e->getLine() . ')'
+                : 'Une erreur est survenue lors de la création du ticket. Veuillez réessayer.';
+            
             return back()
                 ->withInput()
-                ->with('error', 'Une erreur est survenue lors de la création du ticket. Veuillez réessayer.');
+                ->with('error', $errorMessage);
         }
     }
 
@@ -129,7 +197,7 @@ class SupportController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
-        return view('user.support.show', compact('ticket', 'messages'));
+        return view('account.ticket-details', compact('ticket', 'messages'));
     }
 
     /**
@@ -236,7 +304,7 @@ class SupportController extends Controller
         $media = $ticket->getMedia('attachments')->find($mediaId);
 
         if (!$media) {
-            abort(404);
+            abort(404, 'Fichier introuvable.');
         }
 
         return response()->download($media->getPath(), $media->file_name);

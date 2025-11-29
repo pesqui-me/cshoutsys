@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\DB;
+use App\Models\UserNotification;
 
 class ProfileController extends Controller
 {
@@ -114,13 +115,104 @@ class ProfileController extends Controller
     }
 
     /**
-     * Afficher les paramètres de notification
+     * ⭐ Afficher les notifications (CORRIGÉ COMPLET)
      */
-    public function notifications()
+    public function notifications(Request $request)
     {
         $user = Auth::user();
-        
-        return view('account.notifications', compact('user'));
+
+        // Filtrer par statut
+        $query = UserNotification::where('user_id', $user->id);
+
+        if ($request->has('filter')) {
+            if ($request->filter === 'unread') {
+                $query->unread();
+            } elseif ($request->filter === 'read') {
+                $query->where('is_read', true);
+            }
+        }
+
+        // Filtrer par type
+        if ($request->has('type') && $request->type !== 'all') {
+            $query->where('type', $request->type);
+        }
+
+        $notifications = $query->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        // ⭐ Compter les non lues
+        $unreadCount = UserNotification::where('user_id', $user->id)
+            ->unread()
+            ->count();
+
+        // Stats
+        $stats = [
+            'total' => UserNotification::where('user_id', $user->id)->count(),
+            'unread' => $unreadCount,
+            'read' => UserNotification::where('user_id', $user->id)->where('is_read', true)->count(),
+        ];
+
+        return view('account.notifications', compact('user', 'notifications', 'unreadCount', 'stats'));
+    }
+
+    /**
+     * ⭐ Marquer une notification comme lue
+     */
+    public function markAsRead($id)
+    {
+        $notification = UserNotification::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $notification->markAsRead();
+
+        // Si action_url existe, rediriger vers cette URL
+        if ($notification->action_url) {
+            return redirect($notification->action_url);
+        }
+
+        return back()->with('success', 'Notification marquée comme lue.');
+    }
+
+    /**
+     * ⭐ Marquer toutes les notifications comme lues
+     */
+    public function markAllAsRead()
+    {
+        UserNotification::where('user_id', Auth::id())
+            ->unread()
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+
+        return back()->with('success', 'Toutes les notifications ont été marquées comme lues.');
+    }
+
+    /**
+     * ⭐ Supprimer une notification
+     */
+    public function deleteNotification($id)
+    {
+        $notification = UserNotification::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $notification->delete();
+
+        return back()->with('success', 'Notification supprimée.');
+    }
+
+    /**
+     * ⭐ Supprimer toutes les notifications lues
+     */
+    public function deleteAllRead()
+    {
+        $deleted = UserNotification::where('user_id', Auth::id())
+            ->where('is_read', true)
+            ->delete();
+
+        return back()->with('success', $deleted . ' notification(s) supprimée(s).');
     }
 
     /**
@@ -189,59 +281,65 @@ class ProfileController extends Controller
         $activities = collect();
 
         // Investissements récents
-        $investments = $user->investments()
-            ->with('investmentCard')
-            ->latest()
-            ->limit(10)
-            ->get()
-            ->map(function($investment) {
-                return [
-                    'type' => 'investment',
-                    'icon' => '💎',
-                    'title' => 'Achat de ' . $investment->investmentCard->name,
-                    'description' => 'Montant: ' . $investment->investmentCard->formatted_price,
-                    'date' => $investment->created_at,
-                    'url' => route('user.investments.show', $investment->id),
-                ];
-            });
+        if (method_exists($user, 'investments')) {
+            $investments = $user->investments()
+                ->with('investmentCard')
+                ->latest()
+                ->limit(10)
+                ->get()
+                ->map(function($investment) {
+                    return [
+                        'type' => 'investment',
+                        'icon' => '💎',
+                        'title' => 'Achat de ' . $investment->investmentCard->name,
+                        'description' => 'Montant: ' . $investment->investmentCard->formatted_price,
+                        'date' => $investment->created_at,
+                        'url' => route('user.investments.show', $investment->id),
+                    ];
+                });
+            $activities = $activities->concat($investments);
+        }
 
         // Transactions récentes
-        $transactions = $user->transactions()
-            ->latest()
-            ->limit(10)
-            ->get()
-            ->map(function($transaction) {
-                return [
-                    'type' => 'transaction',
-                    'icon' => '💳',
-                    'title' => $transaction->type_label,
-                    'description' => 'Montant: ' . $transaction->formatted_amount,
-                    'date' => $transaction->created_at,
-                    'url' => route('user.transactions.show', $transaction->id),
-                ];
-            });
+        if (method_exists($user, 'transactions')) {
+            $transactions = $user->transactions()
+                ->latest()
+                ->limit(10)
+                ->get()
+                ->map(function($transaction) {
+                    return [
+                        'type' => 'transaction',
+                        'icon' => '💳',
+                        'title' => $transaction->type_label,
+                        'description' => 'Montant: ' . $transaction->formatted_amount,
+                        'date' => $transaction->created_at,
+                        'url' => route('user.transactions.show', $transaction->id),
+                    ];
+                });
+            $activities = $activities->concat($transactions);
+        }
 
         // Retraits récents
-        $withdrawals = $user->withdrawals()
-            ->latest()
-            ->limit(10)
-            ->get()
-            ->map(function($withdrawal) {
-                return [
-                    'type' => 'withdrawal',
-                    'icon' => '💰',
-                    'title' => 'Demande de retrait',
-                    'description' => 'Montant: ' . $withdrawal->formatted_amount . ' - ' . $withdrawal->status_label,
-                    'date' => $withdrawal->created_at,
-                    'url' => route('user.withdrawals.show', $withdrawal->id),
-                ];
-            });
+        if (method_exists($user, 'withdrawals')) {
+            $withdrawals = $user->withdrawals()
+                ->latest()
+                ->limit(10)
+                ->get()
+                ->map(function($withdrawal) {
+                    return [
+                        'type' => 'withdrawal',
+                        'icon' => '💰',
+                        'title' => 'Demande de retrait',
+                        'description' => 'Montant: ' . $withdrawal->formatted_amount . ' - ' . $withdrawal->status_label,
+                        'date' => $withdrawal->created_at,
+                        'url' => route('user.withdrawals.show', $withdrawal->id),
+                    ];
+                });
+            $activities = $activities->concat($withdrawals);
+        }
 
         // Combiner et trier toutes les activités
         $activities = $activities
-            ->concat($investments)
-            ->concat($transactions)
-            ->concat($withdrawals)
             ->sortByDesc('date')
             ->take(20);
 
@@ -261,17 +359,19 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         // Vérifier qu'il n'y a pas d'investissements actifs
-        if ($user->active_investments > 0) {
+        if (method_exists($user, 'investments') && $user->active_investments > 0) {
             return back()->with('error', 'Vous ne pouvez pas supprimer votre compte avec des investissements actifs.');
         }
 
         // Vérifier qu'il n'y a pas de retraits en attente
-        $pendingWithdrawals = $user->withdrawals()
-            ->whereIn('status', ['pending', 'under_review', 'approved', 'processing'])
-            ->count();
+        if (method_exists($user, 'withdrawals')) {
+            $pendingWithdrawals = $user->withdrawals()
+                ->whereIn('status', ['pending', 'under_review', 'approved', 'processing'])
+                ->count();
 
-        if ($pendingWithdrawals > 0) {
-            return back()->with('error', 'Vous ne pouvez pas supprimer votre compte avec des retraits en attente.');
+            if ($pendingWithdrawals > 0) {
+                return back()->with('error', 'Vous ne pouvez pas supprimer votre compte avec des retraits en attente.');
+            }
         }
 
         DB::beginTransaction();

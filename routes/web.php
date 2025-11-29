@@ -58,7 +58,7 @@ Route::middleware(['auth', 'verified'])->prefix('account')->name('user.')->group
     
     // Notifications
     Route::post('/notifications/mark-all-read', [\App\Http\Controllers\Account\DashboardController::class, 'markNotificationsRead'])->name('notifications.mark-all-read');
-    Route::post('/notifications/{notification}/mark-read', [\App\Http\Controllers\Account\DashboardController::class, 'markNotificationRead'])->name('notifications.mark-read');
+    Route::post('/notifications/{notification}/mark-as-read', [\App\Http\Controllers\Account\DashboardController::class, 'markNotificationRead'])->name('notifications.mark-as-read');
     Route::delete('/notifications/{notification}', [\App\Http\Controllers\Account\DashboardController::class, 'deleteNotification'])->name('notifications.delete');
     
     // Investissements
